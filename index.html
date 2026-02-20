@@ -83,7 +83,6 @@
       background: rgba(255,209,102,0.16);border-color: rgba(255,209,102,0.35);
     }
     .bigSpin:hover{ background: rgba(255,209,102,0.22); }
-
     .status{color:var(--muted);font-size:13px;text-align:center;}
 
     .side{
@@ -93,8 +92,7 @@
     .cardTitle{display:flex;justify-content:space-between;align-items:center;gap:10px;}
     .pill{
       font-size:12px;color: var(--muted);border:1px solid rgba(255,255,255,0.12);
-      padding:6px 10px;border-radius:999px;background: rgba(255,255,255,0.04);
-      white-space:nowrap;
+      padding:6px 10px;border-radius:999px;background: rgba(255,255,255,0.04);white-space:nowrap;
     }
     .list{display:flex;flex-direction:column;gap:8px;max-height: 360px;overflow:auto;padding-right:4px;}
     .item{
@@ -251,8 +249,8 @@
 /********************
  * STORAGE + DEFAULTS
  ********************/
-const LS_PRIZES = "bg_spin_prizes_v2";
-const LS_PIN = "bg_spin_pin_v2";
+const LS_PRIZES = "bg_spin_prizes_v3";
+const LS_PIN = "bg_spin_pin_v3";
 const DEFAULT_PIN = "1234";
 
 const DEFAULT_PRIZES = [
@@ -277,9 +275,9 @@ function loadPrizes(){
     const parsed = JSON.parse(raw);
     if(!Array.isArray(parsed) || !parsed.length) return structuredClone(DEFAULT_PRIZES);
     return parsed.map(p => ({
-      label: String(p.label ?? "").trim().slice(0, 40) || "PRIZE",
+      label: String(p.label ?? "").trim().slice(0, 60) || "PRIZE",
       weight: clampInt(p.weight ?? 1, 1, 30),
-      fine: String(p.fine ?? "").trim().slice(0, 120)
+      fine: String(p.fine ?? "").trim().slice(0, 150)
     }));
   }catch{
     return structuredClone(DEFAULT_PRIZES);
@@ -298,7 +296,7 @@ function escapeHtml(s){
 }
 
 /********************
- * UI ELEMENTS
+ * UI
  ********************/
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
@@ -357,7 +355,6 @@ function buildSegments(){
   });
 }
 
-/* Pointer at TOP. Segments defined from TOP (0 at TOP). */
 function winnerFromAngle(angle){
   const twoPi = Math.PI * 2;
   let hit = (-angle) % twoPi;
@@ -367,6 +364,75 @@ function winnerFromAngle(angle){
     if(hit >= segs[i].start && hit < segs[i].end) return i;
   }
   return 0;
+}
+
+/********************
+ * TEXT HELPERS (AUTO WRAP + AUTO SIZE)
+ ********************/
+function chooseFontPx(text){
+  const n = text.length;
+  if(n <= 10) return 38;
+  if(n <= 16) return 34;
+  if(n <= 22) return 30;
+  if(n <= 30) return 26;
+  if(n <= 40) return 22;
+  return 20;
+}
+
+function wrapLines(ctx, text, maxWidth){
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  for(const w of words){
+    const test = line ? (line + " " + w) : w;
+    if(ctx.measureText(test).width <= maxWidth){
+      line = test;
+    }else{
+      if(line) lines.push(line);
+      line = w;
+    }
+  }
+  if(line) lines.push(line);
+  // cap to 3 lines; compress if too many
+  if(lines.length > 3){
+    const first = lines[0];
+    const second = lines[1];
+    let third = lines.slice(2).join(" ");
+    while(ctx.measureText(third + "…").width > maxWidth && third.length > 0){
+      third = third.slice(0, -1);
+    }
+    return [first, second, third + "…"];
+  }
+  return lines;
+}
+
+function drawWrappedLabel(ctx, text, maxWidth){
+  // Start with size based on length, then shrink if needed.
+  let px = chooseFontPx(text);
+  for(let attempt=0; attempt<6; attempt++){
+    ctx.font = `900 ${px}px system-ui`;
+    const lines = wrapLines(ctx, text, maxWidth);
+    const lineHeight = px * 1.05;
+    const totalH = lines.length * lineHeight;
+
+    // We allow up to ~2.6 line-heights in a slice
+    if(totalH <= px * 3.2){
+      // draw centered
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const startY = -((lines.length - 1) * lineHeight) / 2;
+      for(let i=0;i<lines.length;i++){
+        ctx.fillText(lines[i], 0, startY + i*lineHeight);
+      }
+      return;
+    }
+    px -= 3; // shrink and retry
+  }
+  // fallback single line
+  ctx.font = `900 18px system-ui`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(text).slice(0,18) + (String(text).length>18 ? "…" : ""), 0, 0);
 }
 
 /********************
@@ -399,7 +465,6 @@ function drawWheel(){
   for(const s of segs){
     const color = palette[i % palette.length];
 
-    // segment is drawn with -pi/2 offset so 0 starts at TOP
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.arc(0,0,r, s.start - Math.PI/2, s.end - Math.PI/2);
@@ -411,7 +476,7 @@ function drawWheel(){
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Vertical label inside slice (upright flip)
+    // label (vertical-ish, wrapped, auto-sized)
     const mid = (s.start + s.end)/2 - Math.PI/2;
     ctx.save();
     ctx.rotate(mid);
@@ -421,16 +486,13 @@ function drawWheel(){
     const flip = (midNorm > Math.PI/2 && midNorm < 3*Math.PI/2);
     ctx.rotate(flip ? Math.PI : 0);
 
-    // rotate 90° for vertical text feel
+    // 90° gives a vertical feel; wrapping keeps it clean
     ctx.rotate(Math.PI/2);
 
     ctx.fillStyle = "#ffd166";
-    ctx.font = "900 34px system-ui";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    const maxWidth = r * 0.28; // width available for each label
+    drawWrappedLabel(ctx, s.label, maxWidth);
 
-    const label = s.label.length > 16 ? (s.label.slice(0,16) + "…") : s.label;
-    ctx.fillText(label, 0, 0);
     ctx.restore();
 
     i++;
@@ -464,26 +526,8 @@ function renderPrizeList(){
 }
 
 /********************
- * SPIN (ALWAYS FAST + MANY ROTATIONS)
+ * SPIN (FORCED MANY FULL ROTATIONS EVERY TIME)
  ********************/
-function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
-
-function pickWeightedIndexAvoidRepeat(segs){
-  const avoidRepeat = true;
-  const total = totalWeight();
-
-  for(let tries=0; tries<30; tries++){
-    let pick = Math.random() * total;
-    let idx = 0;
-    for(let i=0;i<segs.length;i++){
-      pick -= segs[i].weight;
-      if(pick <= 0){ idx = i; break; }
-    }
-    if(!avoidRepeat || lastWinnerIndex === null || idx !== lastWinnerIndex) return idx;
-  }
-  return 0;
-}
-
 async function spin(){
   if(spinning) return;
   if(prizes.length < 2){
@@ -495,37 +539,41 @@ async function spin(){
   statusEl.textContent = "Spinning...";
 
   const segs = buildSegments();
+  const total = totalWeight();
 
-  // pick target (weighted)
-  const targetIndex = pickWeightedIndexAvoidRepeat(segs);
+  // weighted target index with "avoid repeat"
+  const avoidRepeat = true;
+  let targetIndex = 0;
+  for(let tries=0; tries<30; tries++){
+    let pick = Math.random() * total;
+    for(let i=0;i<segs.length;i++){
+      pick -= segs[i].weight;
+      if(pick <= 0){ targetIndex = i; break; }
+    }
+    if(!avoidRepeat || lastWinnerIndex === null || targetIndex !== lastWinnerIndex) break;
+  }
 
-  // choose a point inside the segment (avoid boundaries)
+  // pick a point inside the segment (avoid boundaries)
   const span = segs[targetIndex].end - segs[targetIndex].start;
   const pad = Math.max(0.01, span * 0.12);
   const within = segs[targetIndex].start + pad + Math.random() * Math.max(0.0001, span - 2*pad);
 
-  // angle that places "within" at top pointer:
-  const desired = -within;
+  // Landing class: finalAngle ≡ -within (mod 2π)
+  const targetBase = -within;
 
-  // ALWAYS spin 10–14 full turns + a little random drift
+  // FORCE 10–14 full rotations forward EVERY time
   const fullTurns = 10 + Math.floor(Math.random() * 5); // 10..14
-  const extra = fullTurns * Math.PI * 2 + (Math.random() * 0.35 - 0.175);
+  const twoPi = Math.PI * 2;
 
   const start = spinAngle;
+  const minEnd = start + fullTurns * twoPi;
+  const m = Math.ceil((minEnd - targetBase) / twoPi);
+  const end = targetBase + m * twoPi;
 
-  // End angle: ensure we always move forward a lot
-  let end = desired + extra;
-
-  // Ensure end is well separated from start (failsafe)
-  const minMove = 8 * Math.PI * 2;
-  if(Math.abs(end - start) < minMove){
-    end += minMove;
-  }
-
-  // Duration: fast start, smooth stop
-  const dur = 2600 + fullTurns * 120; // ~3800–4280ms
-
+  const dur = 2200 + fullTurns * 140; // feels fast but dramatic
   const t0 = performance.now();
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
   await new Promise(resolve => {
     const step = (now) => {
       const t = Math.min(1, (now - t0) / dur);
@@ -617,9 +665,9 @@ function collectRows(){
   const rows = [...rowsEl.querySelectorAll(".row")];
   const next = [];
   for(const r of rows){
-    const label = r.querySelector(".inLabel").value.trim().slice(0,40);
+    const label = r.querySelector(".inLabel").value.trim().slice(0,60);
     const weight = clampInt(r.querySelector(".inWeight").value, 1, 30);
-    const fine = r.querySelector(".inFine").value.trim().slice(0,120);
+    const fine = r.querySelector(".inFine").value.trim().slice(0,150);
     if(label) next.push({ label, weight, fine });
   }
   return next;
