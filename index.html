@@ -8,13 +8,10 @@
     :root{
       --bg:#071427;
       --panel:#0c1f3a;
-      --card:#0f2a55;
       --line:rgba(255,255,255,0.12);
       --text:#f5f7ff;
       --muted:#a9b4d6;
       --gold:#ffd166;
-      --good:#26c281;
-      --bad:#ff5c74;
     }
 
     *{box-sizing:border-box}
@@ -49,22 +46,9 @@
       backdrop-filter: blur(6px);
     }
 
-    .title{
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-    }
-
-    h1{
-      margin:0;
-      font-size: clamp(20px, 2.5vw, 30px);
-      letter-spacing:0.2px;
-    }
-    .sub{
-      color:var(--muted);
-      font-size:14px;
-      line-height:1.3;
-    }
+    .title{display:flex;flex-direction:column;gap:6px;}
+    h1{margin:0;font-size: clamp(20px, 2.5vw, 30px);letter-spacing:0.2px;}
+    .sub{color:var(--muted);font-size:14px;line-height:1.3;}
 
     .controls{
       display:flex;
@@ -99,9 +83,7 @@
       grid-template-columns: 1.2fr 0.8fr;
       gap:16px;
     }
-    @media (max-width: 980px){
-      .main{ grid-template-columns: 1fr; }
-    }
+    @media (max-width: 980px){ .main{ grid-template-columns: 1fr; } }
 
     .wheelCard{
       border:1px solid var(--line);
@@ -299,6 +281,7 @@
     }
     .modalHead h3{margin:0;font-size:18px}
     .modalBody{ padding:12px 8px 4px 8px; }
+
     .grid{
       display:grid;
       grid-template-columns: 1.2fr 0.4fr 0.6fr;
@@ -310,7 +293,7 @@
       font-size:12px;
       margin-bottom:8px;
     }
-    input, textarea{
+    input{
       width:100%;
       padding:10px 10px;
       border-radius:12px;
@@ -319,7 +302,6 @@
       color: var(--text);
       outline:none;
     }
-    textarea{ min-height:42px; resize:vertical; }
 
     .row{
       border:1px solid rgba(255,255,255,0.10);
@@ -336,7 +318,6 @@
       border-top:1px solid rgba(255,255,255,0.10);
       margin-top:10px;
     }
-
     .dangerMini{
       background: rgba(255,92,116,0.14);
       border-color: rgba(255,92,116,0.30);
@@ -391,7 +372,7 @@
         </div>
         <div class="spinRow">
           <button id="btnSpin" class="bigSpin">SPIN</button>
-          <button id="btnReroll" class="btnPrimary">New Spin (same prizes)</button>
+          <button id="btnReroll" class="btnPrimary">New Spin (no prize change)</button>
         </div>
         <div id="status" class="status">Ready.</div>
       </div>
@@ -399,7 +380,7 @@
       <div class="side">
         <div class="cardTitle">
           <b>Current Prize List</b>
-          <span class="pill" id="pillAutosave">Autosaves on this device</span>
+          <span class="pill">Autosaves on this device</span>
         </div>
 
         <div class="winner" id="winnerBox" style="display:none;">
@@ -429,6 +410,7 @@
           <button id="btnClose">Close</button>
         </div>
       </div>
+
       <div class="modalBody">
         <div class="row">
           <div class="gridHead grid" style="margin-bottom:8px;">
@@ -449,7 +431,7 @@
             <span class="pill">Default is 1234 (change it here)</span>
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-            <input id="pinNew" type="password" placeholder="New PIN (numbers only)" inputmode="numeric" />
+            <input id="pinNew" type="password" placeholder="New PIN (4–8 digits)" inputmode="numeric" />
             <input id="pinNew2" type="password" placeholder="Confirm new PIN" inputmode="numeric" />
           </div>
           <div class="rowBtns">
@@ -460,7 +442,7 @@
 
         <div class="row">
           <b>Admin Notes</b>
-          <div class="fine">Prizes + PIN are stored in this browser (localStorage). If you open on another device, you’ll need to re-set them there.</div>
+          <div class="fine">Prizes + PIN are stored in this browser (localStorage). On another device, you’ll need to re-set them there.</div>
         </div>
       </div>
     </div>
@@ -472,11 +454,8 @@
  ********************/
 const LS_PRIZES = "bg_spin_prizes_v1";
 const LS_PIN = "bg_spin_pin_v1";
-
-// Default PIN (used only if none saved yet)
 const DEFAULT_PIN = "1234";
 
-// Default prizes
 const DEFAULT_PRIZES = [
   { label: "$5 OFF", weight: 8, fine: "Valid today only. One per customer." },
   { label: "$10 OFF", weight: 5, fine: "Valid today only. One per customer." },
@@ -487,13 +466,18 @@ const DEFAULT_PRIZES = [
   { label: "$25 STORE CREDIT", weight: 1, fine: "One winner tonight!" }
 ];
 
+function clampInt(v, min, max){
+  const n = parseInt(v, 10);
+  if(Number.isNaN(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
 function loadPrizes(){
   try{
     const raw = localStorage.getItem(LS_PRIZES);
     if(!raw) return structuredClone(DEFAULT_PRIZES);
     const parsed = JSON.parse(raw);
     if(!Array.isArray(parsed) || !parsed.length) return structuredClone(DEFAULT_PRIZES);
-    // sanitize
     return parsed.map(p => ({
       label: String(p.label ?? "").trim().slice(0, 40) || "PRIZE",
       weight: clampInt(p.weight ?? 1, 1, 20),
@@ -503,22 +487,16 @@ function loadPrizes(){
     return structuredClone(DEFAULT_PRIZES);
   }
 }
-function savePrizes(prizes){
-  localStorage.setItem(LS_PRIZES, JSON.stringify(prizes));
-}
+function savePrizes(prizes){ localStorage.setItem(LS_PRIZES, JSON.stringify(prizes)); }
 
 function loadPin(){
   const saved = localStorage.getItem(LS_PIN);
   return (saved && saved.trim()) ? saved.trim() : DEFAULT_PIN;
 }
-function savePin(pin){
-  localStorage.setItem(LS_PIN, pin);
-}
+function savePin(pin){ localStorage.setItem(LS_PIN, pin); }
 
-function clampInt(v, min, max){
-  const n = parseInt(v, 10);
-  if(Number.isNaN(n)) return min;
-  return Math.max(min, Math.min(max, n));
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
 /********************
@@ -563,13 +541,12 @@ centerLogo.addEventListener("error", () => { centerLogo.style.display = "none"; 
 let prizes = loadPrizes();
 let spinAngle = 0;          // current angle (radians)
 let spinning = false;
-let lastWinnerIndex = null;
 
-function totalWeight(){
-  return prizes.reduce((sum,p)=>sum + (p.weight||1), 0);
-}
+/********************
+ * SEGMENTS
+ ********************/
+function totalWeight(){ return prizes.reduce((sum,p)=>sum + (p.weight||1), 0); }
 
-// Build segments with start/end angles based on weights
 function buildSegments(){
   const total = totalWeight();
   let a = 0;
@@ -581,17 +558,15 @@ function buildSegments(){
   });
 }
 
-// Determine winner index given final angle and pointer at top (-90deg)
-function winnerFromAngle(finalAngle){
-  // Normalize 0..2pi; pointer is at -90deg, so rotate angle by -90
+/****************************************************
+ * CHANGE #1: WINNER MATCHES WHAT POINTER IS ON
+ * (Pointer is at TOP; segments are defined from TOP)
+ ****************************************************/
+function winnerFromAngle(angle){
   const twoPi = Math.PI * 2;
-  let a = (finalAngle % twoPi + twoPi) % twoPi;
-
-  // Canvas drawing starts at -90deg; we also draw from -90deg, so use same.
-  // Pointer fixed at -90deg (top). Wheel rotates by spinAngle.
-  // The "hit" is the segment that aligns under the pointer: (-90 - spinAngle).
-  let hit = (-Math.PI/2 - a) % twoPi;
-  hit = (hit + twoPi) % twoPi;
+  // Segment under top pointer is simply (-wheelRotation) in segment space
+  let hit = (-angle) % twoPi;
+  if(hit < 0) hit += twoPi;
 
   const segs = buildSegments();
   for(let i=0;i<segs.length;i++){
@@ -618,7 +593,6 @@ function drawWheel(){
   ctx.lineWidth = 10;
   ctx.stroke();
 
-  // segments
   const palette = [
     "#143b77", "#0f2a55", "#18458a", "#0c2350", "#1b4d99",
     "#102f61", "#173f80", "#0b1f44"
@@ -632,6 +606,7 @@ function drawWheel(){
   for(const s of segs){
     const color = palette[i % palette.length];
 
+    // draw segment from TOP (offset -pi/2)
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.arc(0,0,r, s.start - Math.PI/2, s.end - Math.PI/2);
@@ -639,16 +614,28 @@ function drawWheel(){
     ctx.fillStyle = color;
     ctx.fill();
 
-    // divider line
+    // divider
     ctx.strokeStyle = "rgba(255,255,255,0.14)";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // text
+    /****************************************************
+     * CHANGE #2: TEXT IS VERTICAL IN EACH PIE PIECE
+     * We orient text along the radius (outward).
+     ****************************************************/
     const mid = (s.start + s.end)/2 - Math.PI/2;
+
     ctx.save();
     ctx.rotate(mid);
     ctx.translate(r*0.62, 0);
+
+    // Keep text readable: flip 180° on left half of wheel
+    const midNorm = (mid % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+    const flip = (midNorm > Math.PI/2 && midNorm < 3*Math.PI/2);
+    ctx.rotate(flip ? Math.PI : 0);
+
+    // Now draw vertically (radial): rotate 90° so letters stack "vertical" visually
+    // If you want strictly radial (not stacked), set this to 0.
     ctx.rotate(Math.PI/2);
 
     ctx.fillStyle = "#ffd166";
@@ -660,6 +647,7 @@ function drawWheel(){
     ctx.fillText(label, 0, 0);
 
     ctx.restore();
+
     i++;
   }
   ctx.restore();
@@ -673,7 +661,7 @@ function drawWheel(){
   ctx.lineWidth = 4;
   ctx.stroke();
 
-  // subtle center highlight
+  // subtle highlight
   ctx.beginPath();
   ctx.arc(cx,cy,r*0.34,0,Math.PI*2);
   ctx.strokeStyle = "rgba(255,209,102,0.12)";
@@ -683,17 +671,13 @@ function drawWheel(){
 
 function renderPrizeList(){
   prizeListEl.innerHTML = "";
-  prizes.forEach((p, idx) => {
+  prizes.forEach((p) => {
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `<div><b>${escapeHtml(p.label)}</b><div><span>Weight: ${p.weight}</span></div></div>
       <div style="text-align:right"><span>${p.fine ? escapeHtml(p.fine) : ""}</span></div>`;
     prizeListEl.appendChild(div);
   });
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
 /********************
@@ -711,12 +695,11 @@ async function spin(){
   winnerBox.style.display = "none";
   statusEl.textContent = "Spinning...";
 
-  // Randomize extra rotations + landing
   const start = spinAngle;
   const spins = 5 + Math.random()*3; // 5–8 rotations
   const extra = spins * Math.PI * 2;
 
-  // Choose a random target segment by weight (for fairness)
+  // Weighted pick
   const segs = buildSegments();
   const total = totalWeight();
   let pick = Math.random() * total;
@@ -726,13 +709,15 @@ async function spin(){
     if(pick <= 0){ targetIndex = i; break; }
   }
 
-  // Choose a random angle within that segment
+  // Random angle inside target segment (segment space is 0 at TOP)
   const within = segs[targetIndex].start + Math.random()*(segs[targetIndex].end - segs[targetIndex].start);
 
-  // We need finalAngle such that pointer hits "within"
-  // hit = (-pi/2 - finalAngle) mod 2pi = within  => finalAngle = -pi/2 - within (mod 2pi)
-  const desired = (-Math.PI/2 - within);
-
+  /****************************************************
+   * CHANGE #1 (part 2): landing angle matches pointer
+   * To place segment 'within' at the top pointer:
+   * hit = (-spinAngle) mod 2pi == within  => spinAngle = -within
+   ****************************************************/
+  const desired = (-within);
   const end = desired + extra;
 
   const dur = 3600 + Math.random()*800;
@@ -750,11 +735,9 @@ async function spin(){
     requestAnimationFrame(step);
   });
 
-  // Determine winner from final spinAngle
   const idx = winnerFromAngle(spinAngle);
-  lastWinnerIndex = idx;
-
   const win = prizes[idx];
+
   winnerText.textContent = win.label;
   winnerFine.textContent = win.fine || "";
   winnerBox.style.display = "block";
@@ -798,7 +781,6 @@ function closeModal(){
   pinNew2.value = "";
   pinMsg.textContent = "";
 }
-
 function askPinThen(cb){
   const savedPin = loadPin();
   const entered = prompt("Enter manager PIN:");
@@ -814,7 +796,6 @@ function buildRows(){
   rowsEl.innerHTML = "";
   prizes.forEach((p, i) => addRow(p, i));
 }
-
 function addRow(p={label:"", weight:1, fine:""}, idx){
   const row = document.createElement("div");
   row.className = "row";
@@ -831,13 +812,9 @@ function addRow(p={label:"", weight:1, fine:""}, idx){
     </div>
   `;
 
-  row.querySelector(".btnDel").addEventListener("click", () => {
-    row.remove();
-  });
-
+  row.querySelector(".btnDel").addEventListener("click", () => row.remove());
   rowsEl.appendChild(row);
 }
-
 function collectRows(){
   const rows = [...rowsEl.querySelectorAll(".row")];
   const next = [];
@@ -862,9 +839,7 @@ btnReroll.addEventListener("click", () => {
   drawWheel();
 });
 
-btnEdit.addEventListener("click", () => {
-  askPinThen(() => openModal());
-});
+btnEdit.addEventListener("click", () => askPinThen(openModal));
 
 btnReset.addEventListener("click", () => {
   askPinThen(() => {
@@ -882,7 +857,7 @@ btnFull.addEventListener("click", async () => {
   try{
     if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
     else await document.exitFullscreen();
-  }catch(e){
+  }catch{
     alert("Fullscreen not available in this browser.");
   }
 });
@@ -933,7 +908,6 @@ btnSetPin.addEventListener("click", () => {
 renderPrizeList();
 drawWheel();
 statusEl.textContent = "Ready. Tap SPIN.";
-
 </script>
 </body>
 </html>
