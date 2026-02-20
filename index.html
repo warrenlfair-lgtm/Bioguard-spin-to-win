@@ -55,34 +55,88 @@
       border:1px solid var(--line);border-radius:18px;background: rgba(10,25,50,0.68);
       padding:18px;display:grid;gap:14px;align-items:center;justify-items:center;
     }
-    .wheelWrap{position:relative;width:min(560px, 92vw);aspect-ratio:1/1;display:grid;place-items:center;}
+    .wheelWrap{
+      position:relative;
+      width:min(560px, 92vw);
+      aspect-ratio:1/1;
+      display:grid;
+      place-items:center;
+    }
     canvas{
-      width:100%;height:100%;border-radius:50%;
+      width:100%;height:100%;
+      border-radius:50%;
       box-shadow: 0 20px 60px rgba(0,0,0,0.45);
       border: 1px solid rgba(255,255,255,0.12);
       background: rgba(255,255,255,0.02);
+      position:relative;
+      z-index:1;
     }
     .pointer{
       position:absolute;top:-6px;left:50%;transform: translateX(-50%);
       width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;
       border-top:32px solid var(--gold);
       filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+      z-index:5;
+      pointer-events:none;
     }
-    .centerBadge{
-      position:absolute;width: 32%;aspect-ratio: 1/1;border-radius: 50%;
-      background: rgba(7,20,39,0.8);border: 1px solid rgba(255,255,255,0.16);
-      display:grid;place-items:center;box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-      overflow:hidden;
-    }
-    .centerBadge img{width:95%;height:auto;opacity:0.95;display:none;}
-    .centerText{font-weight:900;color:var(--gold);text-align:center;line-height:1.1;padding:10px;letter-spacing:0.4px;}
 
-    .spinRow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;}
-    .bigSpin{
-      font-size:18px;padding:14px 18px;border-radius:14px;
-      background: rgba(255,209,102,0.16);border-color: rgba(255,209,102,0.35);
+    /* Center logo SPIN button */
+    .centerSpin{
+      position:absolute;
+      width:34%;
+      aspect-ratio:1/1;
+      border-radius:50%;
+      background: rgba(7,20,39,0.86);
+      border: 1px solid rgba(255,255,255,0.18);
+      display:grid;
+      place-items:center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      overflow:hidden;
+      cursor:pointer;
+      user-select:none;
+      z-index:10;              /* <<< ensures it is above the canvas */
+      pointer-events:auto;     /* <<< clickable */
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
     }
-    .bigSpin:hover{ background: rgba(255,209,102,0.22); }
+    .centerSpin:hover{
+      background: rgba(7,20,39,0.92);
+      box-shadow: 0 14px 34px rgba(0,0,0,0.45);
+    }
+    .centerSpin:active{ transform: scale(0.98); }
+    .centerSpin[aria-disabled="true"]{
+      cursor:not-allowed;
+      opacity:0.85;
+      transform:none;
+    }
+    .centerSpin img{
+      width: 92%;
+      height: auto;
+      opacity: 0.98;
+      display:none;
+      pointer-events:none;
+    }
+    .centerText{
+      font-weight:900;
+      color:var(--gold);
+      text-align:center;
+      line-height:1.1;
+      padding:10px;
+      letter-spacing:0.4px;
+      pointer-events:none;
+    }
+    .tapHint{
+      position:absolute;
+      bottom:-28px;
+      left:50%;
+      transform:translateX(-50%);
+      font-size:12px;
+      color:var(--muted);
+      text-align:center;
+      width:100%;
+      z-index:2;
+      pointer-events:none;
+    }
+
     .status{color:var(--muted);font-size:13px;text-align:center;}
 
     .side{
@@ -133,7 +187,13 @@
       width:100%;padding:10px 10px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);
       background: rgba(255,255,255,0.06);color: var(--text);outline:none;
     }
-    .row{border:1px solid rgba(255,255,255,0.10);background: rgba(15,42,85,0.45);border-radius:14px;padding:10px;margin-bottom:10px;}
+    .row{
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(15,42,85,0.45);
+      border-radius:14px;
+      padding:10px;
+      margin-bottom:10px;
+    }
     .rowBtns{display:flex;gap:8px;justify-content:flex-end;padding:10px 8px 6px 8px;border-top:1px solid rgba(255,255,255,0.10);margin-top:10px;}
     .dangerMini{background: rgba(255,92,116,0.14);border-color: rgba(255,92,116,0.30);}
 
@@ -143,17 +203,19 @@
     @keyframes fall{to{ transform: translateY(calc(100vh + 60px)) rotate(720deg); }}
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="top">
       <div class="title">
         <h1>BioGuard • Spin to Win</h1>
-        <div class="sub">Customer education nights + retail promos. Tap <b>SPIN</b> and award the prize at checkout.</div>
+        <div class="sub">Tap the <b>BioGuard logo</b> in the center to spin. (At least <b>5 full rotations</b> every time.)</div>
       </div>
       <div class="controls">
         <button id="btnEdit">Edit Prizes (PIN)</button>
         <button id="btnReset" class="btnDanger">Reset Prizes</button>
         <button id="btnFull">Full Screen</button>
+        <button id="btnClear" class="btnPrimary">Clear Winner</button>
       </div>
     </div>
 
@@ -162,15 +224,16 @@
         <div class="wheelWrap">
           <div class="pointer"></div>
           <canvas id="wheel" width="900" height="900"></canvas>
-          <div class="centerBadge" title="Optional: add bioguard-logo.png to show logo here">
+
+          <!-- THIS is the spin button -->
+          <div id="spinCenter" class="centerSpin" role="button" tabindex="0" aria-label="Spin the wheel" aria-disabled="false">
             <img id="centerLogo" src="bioguard-logo.png" alt="BioGuard">
             <div id="centerText" class="centerText">SPIN<br>TO WIN</div>
           </div>
+
+          <div class="tapHint">Click / tap the logo to spin</div>
         </div>
-        <div class="spinRow">
-          <button id="btnSpin" class="bigSpin">SPIN</button>
-          <button id="btnClear" class="btnPrimary">Clear Winner</button>
-        </div>
+
         <div id="status" class="status">Ready.</div>
       </div>
 
@@ -189,7 +252,7 @@
         <div class="list" id="prizeList"></div>
 
         <div class="fine">
-          Spins are forced to rotate <b>at least 5 full turns</b> every time. Labels are <b>word-wrapped + auto-sized</b>.
+          Slice labels use <b>word wrap + auto font sizing</b> so long prizes look clean.
         </div>
       </div>
     </div>
@@ -197,7 +260,7 @@
 
   <div class="confetti" id="confetti"></div>
 
-  <!-- MODAL -->
+  <!-- EDIT MODAL -->
   <div class="modalBack" id="modalBack">
     <div class="modal">
       <div class="modalHead">
@@ -225,7 +288,7 @@
         <div class="row">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
             <b>Manager PIN</b>
-            <span class="pill">Default is 1234 (change it here)</span>
+            <span class="pill">Default is 1234</span>
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
             <input id="pinNew" type="password" placeholder="New PIN (4–8 digits)" inputmode="numeric" />
@@ -244,8 +307,8 @@
 /********************
  * STORAGE + DEFAULTS
  ********************/
-const LS_PRIZES = "bg_spin_prizes_v4";
-const LS_PIN    = "bg_spin_pin_v4";
+const LS_PRIZES = "bg_spin_prizes_v6";
+const LS_PIN    = "bg_spin_pin_v6";
 const DEFAULT_PIN = "1234";
 
 const DEFAULT_PRIZES = [
@@ -271,7 +334,7 @@ function loadPrizes(){
     const raw = localStorage.getItem(LS_PRIZES);
     if(!raw) return structuredClone(DEFAULT_PRIZES);
     const parsed = JSON.parse(raw);
-    if(!Array.isArray(parsed) || !parsed.length) return structuredClone(DEFAULT_PRIZES);
+    if(!Array.isArray(parsed) || parsed.length < 2) return structuredClone(DEFAULT_PRIZES);
     return parsed.map(p => ({
       label: String(p.label ?? "").trim().slice(0, 80) || "PRIZE",
       weight: clampInt(p.weight ?? 1, 1, 50),
@@ -289,12 +352,12 @@ function loadPin(){
 function savePin(pin){ localStorage.setItem(LS_PIN, pin); }
 
 /********************
- * UI
+ * UI HOOKS
  ********************/
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 
-const btnSpin = document.getElementById("btnSpin");
+const spinCenter = document.getElementById("spinCenter");
 const btnClear = document.getElementById("btnClear");
 const btnEdit = document.getElementById("btnEdit");
 const btnReset = document.getElementById("btnReset");
@@ -336,7 +399,6 @@ let lastWinnerIndex = null;
  * SEGMENTS
  ********************/
 function totalWeight(){ return prizes.reduce((sum,p)=>sum + (p.weight||1), 0); }
-
 function buildSegments(){
   const total = totalWeight();
   let a = 0;
@@ -347,8 +409,6 @@ function buildSegments(){
     return seg;
   });
 }
-
-/* Pointer is at TOP. Segments are defined from TOP (0 at TOP). */
 function winnerFromAngle(angle){
   const twoPi = Math.PI * 2;
   let hit = (-angle) % twoPi;
@@ -387,7 +447,6 @@ function wrapLines(ctx, text, maxWidth){
   }
   if(line) lines.push(line);
 
-  // Cap to 3 lines (add ellipsis if needed)
   if(lines.length > 3){
     const l1 = lines[0] || "";
     const l2 = lines[1] || "";
@@ -406,8 +465,6 @@ function drawWrappedLabel(ctx, text, maxWidth){
     const lines = wrapLines(ctx, text, maxWidth);
     const lineH = px * 1.05;
     const totalH = lines.length * lineH;
-
-    // If it fits, draw it centered
     if(totalH <= px * 3.3){
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -437,7 +494,6 @@ function drawWheel(){
 
   ctx.clearRect(0,0,w,h);
 
-  // outer ring
   ctx.beginPath();
   ctx.arc(cx,cy,r+8,0,Math.PI*2);
   ctx.strokeStyle = "rgba(255,255,255,0.16)";
@@ -454,7 +510,6 @@ function drawWheel(){
   for(const s of segs){
     const color = palette[i % palette.length];
 
-    // segment (offset -pi/2 so segment start aligns at TOP)
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.arc(0,0,r, s.start - Math.PI/2, s.end - Math.PI/2);
@@ -466,42 +521,34 @@ function drawWheel(){
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // label: vertical-ish + wrapped
     const mid = (s.start + s.end)/2 - Math.PI/2;
     ctx.save();
     ctx.rotate(mid);
     ctx.translate(r*0.62, 0);
 
-    // flip on left side so it’s readable
     const midNorm = (mid % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
     const flip = (midNorm > Math.PI/2 && midNorm < 3*Math.PI/2);
     ctx.rotate(flip ? Math.PI : 0);
 
-    // rotate 90° for the “vertical in slice” look
     ctx.rotate(Math.PI/2);
-
     ctx.fillStyle = "#ffd166";
-    const maxWidth = r * 0.30; // width available for wrap
+    const maxWidth = r * 0.30;
     drawWrappedLabel(ctx, s.label, maxWidth);
 
     ctx.restore();
-
     i++;
   }
   ctx.restore();
 
-  // center circle
+  // subtle center rings behind logo button
   ctx.beginPath();
-  ctx.arc(cx,cy,r*0.32,0,Math.PI*2);
-  ctx.fillStyle = "rgba(7,20,39,0.72)";
+  ctx.arc(cx,cy,r*0.33,0,Math.PI*2);
+  ctx.fillStyle = "rgba(7,20,39,0.55)";
   ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.18)";
-  ctx.lineWidth = 4;
-  ctx.stroke();
 
   ctx.beginPath();
   ctx.arc(cx,cy,r*0.34,0,Math.PI*2);
-  ctx.strokeStyle = "rgba(255,209,102,0.12)";
+  ctx.strokeStyle = "rgba(255,209,102,0.10)";
   ctx.lineWidth = 10;
   ctx.stroke();
 }
@@ -520,6 +567,11 @@ function renderPrizeList(){
 /********************
  * SPIN: ALWAYS >= 5 FULL ROTATIONS
  ********************/
+function setSpinEnabled(enabled){
+  spinCenter.setAttribute("aria-disabled", enabled ? "false" : "true");
+  spinCenter.style.pointerEvents = enabled ? "auto" : "none";
+  spinCenter.style.opacity = enabled ? "1" : "0.88";
+}
 async function spin(){
   if(spinning) return;
   if(prizes.length < 2){
@@ -527,13 +579,14 @@ async function spin(){
     return;
   }
   spinning = true;
+  setSpinEnabled(false);
   winnerBox.style.display = "none";
   statusEl.textContent = "Spinning...";
 
   const segs = buildSegments();
   const total = totalWeight();
 
-  // Weighted pick; avoid repeating the same prize (optional)
+  // Weighted pick; avoid repeat
   const avoidRepeat = true;
   let targetIndex = 0;
   for(let tries=0; tries<30; tries++){
@@ -545,29 +598,28 @@ async function spin(){
     if(!avoidRepeat || lastWinnerIndex === null || targetIndex !== lastWinnerIndex) break;
   }
 
-  // Pick a point inside the slice to avoid edge/border weirdness
+  // pick a point inside the slice
   const span = segs[targetIndex].end - segs[targetIndex].start;
   const pad = Math.max(0.01, span * 0.12);
   const within = segs[targetIndex].start + pad + Math.random() * Math.max(0.0001, span - 2*pad);
 
-  // Landing class: finalAngle ≡ -within (mod 2π)
+  // finalAngle ≡ -within (mod 2π)
   const targetBase = -within;
 
-  // ✅ Your requirement: at least 5 full spins every time
+  // At least 5 spins every time (5..8)
   const minSpins = 5;
   const extraSpins = Math.floor(Math.random() * 4); // 0..3
-  const fullTurns = minSpins + extraSpins;          // 5..8
+  const fullTurns = minSpins + extraSpins;
 
   const twoPi = Math.PI * 2;
   const start = spinAngle;
 
-  // Choose m so end is at least `fullTurns` ahead of start
+  // Choose m so end is >= fullTurns ahead of start
   const minEnd = start + fullTurns * twoPi;
   const m = Math.ceil((minEnd - targetBase) / twoPi);
   const end = targetBase + m * twoPi;
 
-  // Speed: snappy but dramatic
-  const dur = 1800 + fullTurns * 220; // ~2900–3560ms
+  const dur = 1800 + fullTurns * 220;
   const t0 = performance.now();
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -593,7 +645,9 @@ async function spin(){
   statusEl.textContent = "Winner selected.";
 
   popConfetti(120);
+
   spinning = false;
+  setSpinEnabled(true);
 }
 
 /********************
@@ -621,11 +675,14 @@ function popConfetti(n=80){
 }
 
 /********************
- * ADMIN (PIN + EDIT)
+ * EDIT MODAL (FIXED)
  ********************/
 function openModal(){ modalBack.style.display = "flex"; buildRows(); }
-function closeModal(){ modalBack.style.display = "none"; pinNew.value=""; pinNew2.value=""; pinMsg.textContent=""; }
-
+function closeModal(){
+  modalBack.style.display = "none";
+  pinNew.value=""; pinNew2.value="";
+  pinMsg.textContent="";
+}
 function askPinThen(cb){
   const savedPin = loadPin();
   const entered = prompt("Enter manager PIN:");
@@ -636,28 +693,26 @@ function askPinThen(cb){
   }
   cb();
 }
-
-function buildRows(){ rowsEl.innerHTML=""; prizes.forEach((p, i) => addRow(p, i)); }
-
-function addRow(p={label:"", weight:1, fine:""}, idx){
+function addRow(p={label:"", weight:1, fine:""}){
   const row = document.createElement("div");
   row.className = "row";
-  row.dataset.index = String(idx);
-
   row.innerHTML = `
     <div class="grid">
       <input class="inLabel" placeholder="e.g., $5 OFF" value="${escapeHtml(p.label)}" />
-      <input class="inWeight" type="number" min="1" max="50" value="${p.weight}" />
+      <input class="inWeight" type="number" min="1" max="50" value="${p.weight ?? 1}" />
       <input class="inFine" placeholder="Optional fine print" value="${escapeHtml(p.fine||"")}" />
     </div>
     <div class="rowBtns">
-      <button class="btnDel dangerMini">Remove</button>
+      <button type="button" class="btnDel dangerMini">Remove</button>
     </div>
   `;
   row.querySelector(".btnDel").addEventListener("click", () => row.remove());
   rowsEl.appendChild(row);
 }
-
+function buildRows(){
+  rowsEl.innerHTML = "";
+  prizes.forEach(p => addRow(p));
+}
 function collectRows(){
   const rows = [...rowsEl.querySelectorAll(".row")];
   const next = [];
@@ -673,7 +728,15 @@ function collectRows(){
 /********************
  * EVENTS
  ********************/
-btnSpin.addEventListener("click", spin);
+
+/* Center logo is the spin button */
+spinCenter.addEventListener("click", (e) => { e.preventDefault(); spin(); });
+spinCenter.addEventListener("keydown", (e) => {
+  if(e.key === "Enter" || e.key === " "){
+    e.preventDefault();
+    spin();
+  }
+});
 
 btnClear.addEventListener("click", () => {
   if(spinning) return;
@@ -704,12 +767,12 @@ btnFull.addEventListener("click", async () => {
   }
 });
 
-document.getElementById("btnClose").addEventListener("click", closeModal);
+btnClose.addEventListener("click", closeModal);
 modalBack.addEventListener("click", (e) => { if(e.target === modalBack) closeModal(); });
 
-document.getElementById("btnAdd").addEventListener("click", () => addRow({label:"", weight:1, fine:""}, Date.now()));
+btnAdd.addEventListener("click", () => addRow({label:"", weight:1, fine:""}));
 
-document.getElementById("btnSave").addEventListener("click", () => {
+btnSave.addEventListener("click", () => {
   const next = collectRows();
   if(next.length < 2){
     alert("Please keep at least 2 prizes.");
@@ -731,8 +794,7 @@ btnSetPin.addEventListener("click", () => {
   if(!/^\d{4,8}$/.test(a)){ pinMsg.textContent = "PIN must be 4–8 digits."; return; }
   savePin(a);
   pinMsg.textContent = "PIN updated successfully.";
-  pinNew.value = "";
-  pinNew2.value = "";
+  pinNew.value = ""; pinNew2.value = "";
 });
 
 /********************
@@ -740,7 +802,8 @@ btnSetPin.addEventListener("click", () => {
  ********************/
 renderPrizeList();
 drawWheel();
-statusEl.textContent = "Ready. Tap SPIN.";
+statusEl.textContent = "Ready. Tap the center logo to spin.";
+setSpinEnabled(true);
 </script>
 </body>
 </html>
