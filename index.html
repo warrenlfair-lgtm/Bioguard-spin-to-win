@@ -151,11 +151,20 @@
       position:fixed;inset:0;background: rgba(0,0,0,0.62);
       display:none;align-items:center;justify-content:center;padding:18px;z-index:50;
     }
-    .modal{
-      width:min(900px, 100%);background: rgba(10,25,50,0.95);
-      border:1px solid rgba(255,255,255,0.14);border-radius:18px;padding:14px;
-      box-shadow: 0 30px 90px rgba(0,0,0,0.55);
-    }
+   .modal{
+  width:min(900px, 100%);
+  background: rgba(10,25,50,0.95);
+  border:1px solid rgba(255,255,255,0.14);
+  border-radius:18px;
+  padding:14px;
+  box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+
+  /* ✅ allow modal to fit screen */
+  max-height: 88vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
     .modalHead{
       display:flex;justify-content:space-between;align-items:center;gap:12px;
       padding:8px 8px 12px 8px;border-bottom:1px solid rgba(255,255,255,0.10);
