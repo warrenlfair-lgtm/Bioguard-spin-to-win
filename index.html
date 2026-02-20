@@ -169,7 +169,7 @@
         </div>
         <div class="spinRow">
           <button id="btnSpin" class="bigSpin">SPIN</button>
-          <button id="btnReroll" class="btnPrimary">Clear Winner</button>
+          <button id="btnClear" class="btnPrimary">Clear Winner</button>
         </div>
         <div id="status" class="status">Ready.</div>
       </div>
@@ -189,7 +189,7 @@
         <div class="list" id="prizeList"></div>
 
         <div class="fine">
-          Tip: Use weights to control frequency. Example: $5 off weight 8, 10% off weight 3, big prize weight 1.
+          Spins are forced to rotate <b>at least 5 full turns</b> every time. Labels are <b>word-wrapped + auto-sized</b>.
         </div>
       </div>
     </div>
@@ -236,11 +236,6 @@
           </div>
           <div class="fine" id="pinMsg"></div>
         </div>
-
-        <div class="row">
-          <b>Admin Notes</b>
-          <div class="fine">Prizes + PIN are stored in this browser (localStorage). On another device, you’ll need to re-set them there.</div>
-        </div>
       </div>
     </div>
   </div>
@@ -249,17 +244,17 @@
 /********************
  * STORAGE + DEFAULTS
  ********************/
-const LS_PRIZES = "bg_spin_prizes_v3";
-const LS_PIN = "bg_spin_pin_v3";
+const LS_PRIZES = "bg_spin_prizes_v4";
+const LS_PIN    = "bg_spin_pin_v4";
 const DEFAULT_PIN = "1234";
 
 const DEFAULT_PRIZES = [
   { label: "$5 OFF", weight: 8, fine: "Valid today only. One per customer." },
   { label: "$10 OFF", weight: 5, fine: "Valid today only. One per customer." },
-  { label: "5% OFF", weight: 6, fine: "Applies to regular-priced items." },
-  { label: "10% OFF", weight: 3, fine: "Applies to regular-priced items." },
+  { label: "5% OFF TOTAL PURCHASE", weight: 6, fine: "Applies to regular-priced items." },
+  { label: "10% OFF TOTAL PURCHASE", weight: 3, fine: "Applies to regular-priced items." },
   { label: "FREE WATER TEST", weight: 6, fine: "Stop by the counter anytime." },
-  { label: "FREE SHOCK", weight: 2, fine: "With qualifying purchase." },
+  { label: "FREE SHOCK WITH PURCHASE", weight: 2, fine: "With qualifying purchase." },
   { label: "$25 STORE CREDIT", weight: 1, fine: "One winner tonight!" }
 ];
 
@@ -268,6 +263,9 @@ function clampInt(v, min, max){
   if(Number.isNaN(n)) return min;
   return Math.max(min, Math.min(max, n));
 }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
 function loadPrizes(){
   try{
     const raw = localStorage.getItem(LS_PRIZES);
@@ -275,25 +273,20 @@ function loadPrizes(){
     const parsed = JSON.parse(raw);
     if(!Array.isArray(parsed) || !parsed.length) return structuredClone(DEFAULT_PRIZES);
     return parsed.map(p => ({
-      label: String(p.label ?? "").trim().slice(0, 60) || "PRIZE",
-      weight: clampInt(p.weight ?? 1, 1, 30),
-      fine: String(p.fine ?? "").trim().slice(0, 150)
+      label: String(p.label ?? "").trim().slice(0, 80) || "PRIZE",
+      weight: clampInt(p.weight ?? 1, 1, 50),
+      fine: String(p.fine ?? "").trim().slice(0, 180)
     }));
   }catch{
     return structuredClone(DEFAULT_PRIZES);
   }
 }
 function savePrizes(prizes){ localStorage.setItem(LS_PRIZES, JSON.stringify(prizes)); }
-
 function loadPin(){
   const saved = localStorage.getItem(LS_PIN);
   return (saved && saved.trim()) ? saved.trim() : DEFAULT_PIN;
 }
 function savePin(pin){ localStorage.setItem(LS_PIN, pin); }
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
 
 /********************
  * UI
@@ -302,7 +295,7 @@ const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 
 const btnSpin = document.getElementById("btnSpin");
-const btnReroll = document.getElementById("btnReroll");
+const btnClear = document.getElementById("btnClear");
 const btnEdit = document.getElementById("btnEdit");
 const btnReset = document.getElementById("btnReset");
 const btnFull = document.getElementById("btnFull");
@@ -355,6 +348,7 @@ function buildSegments(){
   });
 }
 
+/* Pointer is at TOP. Segments are defined from TOP (0 at TOP). */
 function winnerFromAngle(angle){
   const twoPi = Math.PI * 2;
   let hit = (-angle) % twoPi;
@@ -367,18 +361,17 @@ function winnerFromAngle(angle){
 }
 
 /********************
- * TEXT HELPERS (AUTO WRAP + AUTO SIZE)
+ * LABEL WORD WRAP + AUTO SIZE
  ********************/
-function chooseFontPx(text){
-  const n = text.length;
+function fontPxFor(text){
+  const n = String(text).length;
   if(n <= 10) return 38;
   if(n <= 16) return 34;
   if(n <= 22) return 30;
-  if(n <= 30) return 26;
-  if(n <= 40) return 22;
-  return 20;
+  if(n <= 32) return 26;
+  if(n <= 44) return 22;
+  return 19;
 }
-
 function wrapLines(ctx, text, maxWidth){
   const words = String(text).split(/\s+/).filter(Boolean);
   const lines = [];
@@ -393,46 +386,44 @@ function wrapLines(ctx, text, maxWidth){
     }
   }
   if(line) lines.push(line);
-  // cap to 3 lines; compress if too many
+
+  // Cap to 3 lines (add ellipsis if needed)
   if(lines.length > 3){
-    const first = lines[0];
-    const second = lines[1];
-    let third = lines.slice(2).join(" ");
-    while(ctx.measureText(third + "…").width > maxWidth && third.length > 0){
-      third = third.slice(0, -1);
+    const l1 = lines[0] || "";
+    const l2 = lines[1] || "";
+    let l3 = lines.slice(2).join(" ");
+    while(ctx.measureText(l3 + "…").width > maxWidth && l3.length > 0){
+      l3 = l3.slice(0,-1);
     }
-    return [first, second, third + "…"];
+    return [l1, l2, (l3 ? l3 : "").trim() + "…"];
   }
   return lines;
 }
-
 function drawWrappedLabel(ctx, text, maxWidth){
-  // Start with size based on length, then shrink if needed.
-  let px = chooseFontPx(text);
-  for(let attempt=0; attempt<6; attempt++){
+  let px = fontPxFor(text);
+  for(let attempt=0; attempt<7; attempt++){
     ctx.font = `900 ${px}px system-ui`;
     const lines = wrapLines(ctx, text, maxWidth);
-    const lineHeight = px * 1.05;
-    const totalH = lines.length * lineHeight;
+    const lineH = px * 1.05;
+    const totalH = lines.length * lineH;
 
-    // We allow up to ~2.6 line-heights in a slice
-    if(totalH <= px * 3.2){
-      // draw centered
+    // If it fits, draw it centered
+    if(totalH <= px * 3.3){
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      const startY = -((lines.length - 1) * lineHeight) / 2;
+      const startY = -((lines.length - 1) * lineH)/2;
       for(let i=0;i<lines.length;i++){
-        ctx.fillText(lines[i], 0, startY + i*lineHeight);
+        ctx.fillText(lines[i], 0, startY + i*lineH);
       }
       return;
     }
-    px -= 3; // shrink and retry
+    px -= 3;
   }
-  // fallback single line
-  ctx.font = `900 18px system-ui`;
+  ctx.font = "900 18px system-ui";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(String(text).slice(0,18) + (String(text).length>18 ? "…" : ""), 0, 0);
+  const t = String(text);
+  ctx.fillText(t.slice(0,18) + (t.length>18 ? "…" : ""), 0, 0);
 }
 
 /********************
@@ -446,16 +437,14 @@ function drawWheel(){
 
   ctx.clearRect(0,0,w,h);
 
+  // outer ring
   ctx.beginPath();
   ctx.arc(cx,cy,r+8,0,Math.PI*2);
   ctx.strokeStyle = "rgba(255,255,255,0.16)";
   ctx.lineWidth = 10;
   ctx.stroke();
 
-  const palette = [
-    "#143b77", "#0f2a55", "#18458a", "#0c2350", "#1b4d99",
-    "#102f61", "#173f80", "#0b1f44"
-  ];
+  const palette = ["#143b77","#0f2a55","#18458a","#0c2350","#1b4d99","#102f61","#173f80","#0b1f44"];
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -465,6 +454,7 @@ function drawWheel(){
   for(const s of segs){
     const color = palette[i % palette.length];
 
+    // segment (offset -pi/2 so segment start aligns at TOP)
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.arc(0,0,r, s.start - Math.PI/2, s.end - Math.PI/2);
@@ -476,21 +466,22 @@ function drawWheel(){
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // label (vertical-ish, wrapped, auto-sized)
+    // label: vertical-ish + wrapped
     const mid = (s.start + s.end)/2 - Math.PI/2;
     ctx.save();
     ctx.rotate(mid);
     ctx.translate(r*0.62, 0);
 
+    // flip on left side so it’s readable
     const midNorm = (mid % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
     const flip = (midNorm > Math.PI/2 && midNorm < 3*Math.PI/2);
     ctx.rotate(flip ? Math.PI : 0);
 
-    // 90° gives a vertical feel; wrapping keeps it clean
+    // rotate 90° for the “vertical in slice” look
     ctx.rotate(Math.PI/2);
 
     ctx.fillStyle = "#ffd166";
-    const maxWidth = r * 0.28; // width available for each label
+    const maxWidth = r * 0.30; // width available for wrap
     drawWrappedLabel(ctx, s.label, maxWidth);
 
     ctx.restore();
@@ -499,6 +490,7 @@ function drawWheel(){
   }
   ctx.restore();
 
+  // center circle
   ctx.beginPath();
   ctx.arc(cx,cy,r*0.32,0,Math.PI*2);
   ctx.fillStyle = "rgba(7,20,39,0.72)";
@@ -526,7 +518,7 @@ function renderPrizeList(){
 }
 
 /********************
- * SPIN (FORCED MANY FULL ROTATIONS EVERY TIME)
+ * SPIN: ALWAYS >= 5 FULL ROTATIONS
  ********************/
 async function spin(){
   if(spinning) return;
@@ -541,7 +533,7 @@ async function spin(){
   const segs = buildSegments();
   const total = totalWeight();
 
-  // weighted target index with "avoid repeat"
+  // Weighted pick; avoid repeating the same prize (optional)
   const avoidRepeat = true;
   let targetIndex = 0;
   for(let tries=0; tries<30; tries++){
@@ -553,7 +545,7 @@ async function spin(){
     if(!avoidRepeat || lastWinnerIndex === null || targetIndex !== lastWinnerIndex) break;
   }
 
-  // pick a point inside the segment (avoid boundaries)
+  // Pick a point inside the slice to avoid edge/border weirdness
   const span = segs[targetIndex].end - segs[targetIndex].start;
   const pad = Math.max(0.01, span * 0.12);
   const within = segs[targetIndex].start + pad + Math.random() * Math.max(0.0001, span - 2*pad);
@@ -561,16 +553,21 @@ async function spin(){
   // Landing class: finalAngle ≡ -within (mod 2π)
   const targetBase = -within;
 
-  // FORCE 10–14 full rotations forward EVERY time
-  const fullTurns = 10 + Math.floor(Math.random() * 5); // 10..14
-  const twoPi = Math.PI * 2;
+  // ✅ Your requirement: at least 5 full spins every time
+  const minSpins = 5;
+  const extraSpins = Math.floor(Math.random() * 4); // 0..3
+  const fullTurns = minSpins + extraSpins;          // 5..8
 
+  const twoPi = Math.PI * 2;
   const start = spinAngle;
+
+  // Choose m so end is at least `fullTurns` ahead of start
   const minEnd = start + fullTurns * twoPi;
   const m = Math.ceil((minEnd - targetBase) / twoPi);
   const end = targetBase + m * twoPi;
 
-  const dur = 2200 + fullTurns * 140; // feels fast but dramatic
+  // Speed: snappy but dramatic
+  const dur = 1800 + fullTurns * 220; // ~2900–3560ms
   const t0 = performance.now();
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
 
@@ -650,7 +647,7 @@ function addRow(p={label:"", weight:1, fine:""}, idx){
   row.innerHTML = `
     <div class="grid">
       <input class="inLabel" placeholder="e.g., $5 OFF" value="${escapeHtml(p.label)}" />
-      <input class="inWeight" type="number" min="1" max="30" value="${p.weight}" />
+      <input class="inWeight" type="number" min="1" max="50" value="${p.weight}" />
       <input class="inFine" placeholder="Optional fine print" value="${escapeHtml(p.fine||"")}" />
     </div>
     <div class="rowBtns">
@@ -665,9 +662,9 @@ function collectRows(){
   const rows = [...rowsEl.querySelectorAll(".row")];
   const next = [];
   for(const r of rows){
-    const label = r.querySelector(".inLabel").value.trim().slice(0,60);
-    const weight = clampInt(r.querySelector(".inWeight").value, 1, 30);
-    const fine = r.querySelector(".inFine").value.trim().slice(0,150);
+    const label = r.querySelector(".inLabel").value.trim().slice(0,80);
+    const weight = clampInt(r.querySelector(".inWeight").value, 1, 50);
+    const fine = r.querySelector(".inFine").value.trim().slice(0,180);
     if(label) next.push({ label, weight, fine });
   }
   return next;
@@ -678,7 +675,7 @@ function collectRows(){
  ********************/
 btnSpin.addEventListener("click", spin);
 
-btnReroll.addEventListener("click", () => {
+btnClear.addEventListener("click", () => {
   if(spinning) return;
   winnerBox.style.display = "none";
   statusEl.textContent = "Ready.";
@@ -707,12 +704,12 @@ btnFull.addEventListener("click", async () => {
   }
 });
 
-btnClose.addEventListener("click", closeModal);
+document.getElementById("btnClose").addEventListener("click", closeModal);
 modalBack.addEventListener("click", (e) => { if(e.target === modalBack) closeModal(); });
 
-btnAdd.addEventListener("click", () => addRow({label:"", weight:1, fine:""}, Date.now()));
+document.getElementById("btnAdd").addEventListener("click", () => addRow({label:"", weight:1, fine:""}, Date.now()));
 
-btnSave.addEventListener("click", () => {
+document.getElementById("btnSave").addEventListener("click", () => {
   const next = collectRows();
   if(next.length < 2){
     alert("Please keep at least 2 prizes.");
