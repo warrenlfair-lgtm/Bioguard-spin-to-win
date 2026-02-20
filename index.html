@@ -696,19 +696,78 @@ async function spin(){
   statusEl.textContent = "Spinning...";
 
   const start = spinAngle;
-  const spins = 5 + Math.random()*3; // 5–8 rotations
-  const extra = spins * Math.PI * 2;
 
-  // Weighted pick
+  // Always spin a lot: 8–12 full rotations (fast + exciting)
+  const baseTurns = 8;
+  const extraTurns = Math.floor(Math.random() * 5); // 0–4
+  const fullTurns = baseTurns + extraTurns;         // 8–12
+  const extra = fullTurns * Math.PI * 2;
+
+  // Weighted pick (optionally avoid repeating last winner)
   const segs = buildSegments();
   const total = totalWeight();
-  let pick = Math.random() * total;
+
   let targetIndex = 0;
-  for(let i=0;i<segs.length;i++){
-    pick -= segs[i].weight;
-    if(pick <= 0){ targetIndex = i; break; }
+
+  // OPTIONAL: avoid same result twice in a row (set to true/false)
+  const avoidRepeat = true;
+
+  for(let tries=0; tries<20; tries++){
+    let pick = Math.random() * total;
+    for(let i=0;i<segs.length;i++){
+      pick -= segs[i].weight;
+      if(pick <= 0){ targetIndex = i; break; }
+    }
+    if(!avoidRepeat || lastWinnerIndex === null || targetIndex !== lastWinnerIndex) break;
   }
 
+  // Pick a point safely inside the segment (avoid boundary edge cases)
+  const pad = (segs[targetIndex].end - segs[targetIndex].start) * 0.12; // 12% padding
+  const within = segs[targetIndex].start + pad + Math.random()*Math.max(0.0001, (segs[targetIndex].end - segs[targetIndex].start) - 2*pad);
+
+  // We want: (-finalAngle mod 2π) = within  => finalAngle = -(within) + k*2π
+  // Force big visible movement by adding extra full rotations ON TOP of start angle.
+  // Ensure the end is always "ahead" of the start by extra rotations.
+  const desired = -within;
+
+  // Make sure we always move forward a lot from current start
+  const twoPi = Math.PI * 2;
+  let end = desired + extra;
+
+  // If for any reason end is too close to start, push it further
+  if(Math.abs(end - start) < 6 * twoPi){
+    end += 6 * twoPi;
+  }
+
+  // Duration scales slightly with turns so it always feels snappy
+  const dur = 2600 + fullTurns * 140; // ~3720–4280ms
+
+  const t0 = performance.now();
+
+  await new Promise(resolve => {
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / dur);
+      const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      spinAngle = start + (end - start) * e;
+      drawWheel();
+      if(t < 1) requestAnimationFrame(step);
+      else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+
+  const idx = winnerFromAngle(spinAngle);
+  lastWinnerIndex = idx;
+
+  const win = prizes[idx];
+  winnerText.textContent = win.label;
+  winnerFine.textContent = win.fine || "";
+  winnerBox.style.display = "block";
+  statusEl.textContent = "Winner selected.";
+
+  popConfetti(120);
+  spinning = false;
+}
   // Random angle inside target segment (segment space is 0 at TOP)
   const within = segs[targetIndex].start + Math.random()*(segs[targetIndex].end - segs[targetIndex].start);
 
