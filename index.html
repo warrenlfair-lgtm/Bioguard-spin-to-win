@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>BioGuard • Spin to Win</title>
+  <style>
+    :root{
+      --bg:#071427;
+      --panel:#0c1f3a;
+      --card:#0f2a55;
+      --line:rgba(255,255,255,0.12);
+      --text:#f5f7ff;
+      --muted:#a9b4d6;
+      --gold:#ffd166;
+      --good:#26c281;
+      --bad:#ff5c74;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 600px at 50% 0%, #0e2a57 0%, var(--bg) 65%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:22px;
+    }
+
+    .wrap{
+      width:min(1100px, 100%);
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:16px;
+    }
+
+    .top{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      padding:16px 18px;
+      border:1px solid var(--line);
+      border-radius:18px;
+      background: rgba(10,25,50,0.7);
+      backdrop-filter: blur(6px);
+    }
+
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    h1{
+      margin:0;
+      font-size: clamp(20px, 2.5vw, 30px);
+      letter-spacing:0.2px;
+    }
+    .sub{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.3;
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+
+    button{
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(15,42,85,0.7);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:700;
+      letter-spacing:0.2px;
+    }
+    button:hover{ background: rgba(21,57,111,0.82); }
+    .btnPrimary{
+      background: rgba(38,194,129,0.18);
+      border-color: rgba(38,194,129,0.35);
+    }
+    .btnDanger{
+      background: rgba(255,92,116,0.14);
+      border-color: rgba(255,92,116,0.30);
+    }
+
+    .main{
+      display:grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap:16px;
+    }
+    @media (max-width: 980px){
+      .main{ grid-template-columns: 1fr; }
+    }
+
+    .wheelCard{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background: rgba(10,25,50,0.68);
+      padding:18px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+      align-items:center;
+      justify-items:center;
+    }
+
+    .wheelWrap{
+      position:relative;
+      width:min(560px, 92vw);
+      aspect-ratio:1/1;
+      display:grid;
+      place-items:center;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      border-radius:50%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .pointer{
+      position:absolute;
+      top:-6px;
+      left:50%;
+      transform: translateX(-50%);
+      width:0;height:0;
+      border-left:18px solid transparent;
+      border-right:18px solid transparent;
+      border-top:32px solid var(--gold);
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.35));
+    }
+
+    .centerBadge{
+      position:absolute;
+      width: 32%;
+      aspect-ratio: 1/1;
+      border-radius: 50%;
+      background: rgba(7,20,39,0.8);
+      border: 1px solid rgba(255,255,255,0.16);
+      display:grid;
+      place-items:center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      overflow:hidden;
+    }
+
+    .centerBadge img{
+      width: 95%;
+      height: auto;
+      opacity: 0.95;
+      display:none;
+    }
+
+    .centerText{
+      font-weight:900;
+      color:var(--gold);
+      text-align:center;
+      line-height:1.1;
+      padding:10px;
+      letter-spacing:0.4px;
+    }
+
+    .spinRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .bigSpin{
+      font-size:18px;
+      padding:14px 18px;
+      border-radius:14px;
+      background: rgba(255,209,102,0.16);
+      border-color: rgba(255,209,102,0.35);
+      color: var(--text);
+    }
+    .bigSpin:hover{ background: rgba(255,209,102,0.22); }
+
+    .status{
+      color:var(--muted);
+      font-size:13px;
+      text-align:center;
+    }
+
+    .side{
+      border:1px solid var(--line);
+      border-radius:18px;
+      background: rgba(10,25,50,0.68);
+      padding:16px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+
+    .cardTitle{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+
+    .pill{
+      font-size:12px;
+      color: var(--muted);
+      border:1px solid rgba(255,255,255,0.12);
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,0.04);
+      white-space:nowrap;
+    }
+
+    .list{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      max-height: 360px;
+      overflow:auto;
+      padding-right:4px;
+    }
+    .item{
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(15,42,85,0.55);
+      border-radius:14px;
+      padding:10px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .item b{ color: var(--text); }
+    .item span{ color: var(--muted); font-size:12px; }
+
+    .winner{
+      border:1px solid rgba(255,209,102,0.30);
+      background: rgba(255,209,102,0.12);
+      border-radius:16px;
+      padding:12px;
+    }
+    .winner h2{
+      margin:0 0 4px 0;
+      font-size:18px;
+      color:var(--gold);
+    }
+    .winner p{
+      margin:0;
+      color:var(--text);
+      font-weight:800;
+      font-size:22px;
+      letter-spacing:0.2px;
+    }
+    .fine{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+    }
+
+    /* Modal */
+    .modalBack{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,0.62);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:50;
+    }
+    .modal{
+      width:min(900px, 100%);
+      background: rgba(10,25,50,0.95);
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:18px;
+      padding:14px;
+      box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+    }
+    .modalHead{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      padding:8px 8px 12px 8px;
+      border-bottom:1px solid rgba(255,255,255,0.10);
+    }
+    .modalHead h3{margin:0;font-size:18px}
+    .modalBody{ padding:12px 8px 4px 8px; }
+    .grid{
+      display:grid;
+      grid-template-columns: 1.2fr 0.4fr 0.6fr;
+      gap:10px;
+      align-items:center;
+    }
+    .gridHead{
+      color:var(--muted);
+      font-size:12px;
+      margin-bottom:8px;
+    }
+    input, textarea{
+      width:100%;
+      padding:10px 10px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      outline:none;
+    }
+    textarea{ min-height:42px; resize:vertical; }
+
+    .row{
+      border:1px solid rgba(255,255,255,0.10);
+      background: rgba(15,42,85,0.45);
+      border-radius:14px;
+      padding:10px;
+      margin-bottom:10px;
+    }
+    .rowBtns{
+      display:flex;
+      gap:8px;
+      justify-content:flex-end;
+      padding:10px 8px 6px 8px;
+      border-top:1px solid rgba(255,255,255,0.10);
+      margin-top:10px;
+    }
+
+    .dangerMini{
+      background: rgba(255,92,116,0.14);
+      border-color: rgba(255,92,116,0.30);
+    }
+
+    /* Confetti */
+    .confetti{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      overflow:hidden;
+      z-index:60;
+      display:none;
+    }
+    .confetti i{
+      position:absolute;
+      top:-20px;
+      width:10px;
+      height:14px;
+      opacity:0.9;
+      border-radius:2px;
+      animation: fall 1400ms linear forwards;
+    }
+    @keyframes fall{
+      to{ transform: translateY(calc(100vh + 60px)) rotate(720deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">
+        <h1>BioGuard • Spin to Win</h1>
+        <div class="sub">Customer education nights + retail promos. Tap <b>SPIN</b> and award the prize at checkout.</div>
+      </div>
+      <div class="controls">
+        <button id="btnEdit">Edit Prizes (PIN)</button>
+        <button id="btnReset" class="btnDanger">Reset Prizes</button>
+        <button id="btnFull">Full Screen</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="wheelCard">
+        <div class="wheelWrap">
+          <div class="pointer"></div>
+          <canvas id="wheel" width="900" height="900"></canvas>
+          <div class="centerBadge" title="Optional: add bioguard-logo.png to show logo here">
+            <img id="centerLogo" src="bioguard-logo.png" alt="BioGuard">
+            <div id="centerText" class="centerText">SPIN<br>TO WIN</div>
+          </div>
+        </div>
+        <div class="spinRow">
+          <button id="btnSpin" class="bigSpin">SPIN</button>
+          <button id="btnReroll" class="btnPrimary">New Spin (same prizes)</button>
+        </div>
+        <div id="status" class="status">Ready.</div>
+      </div>
+
+      <div class="side">
+        <div class="cardTitle">
+          <b>Current Prize List</b>
+          <span class="pill" id="pillAutosave">Autosaves on this device</span>
+        </div>
+
+        <div class="winner" id="winnerBox" style="display:none;">
+          <h2>Winner!</h2>
+          <p id="winnerText"></p>
+          <div class="fine" id="winnerFine"></div>
+        </div>
+
+        <div class="list" id="prizeList"></div>
+
+        <div class="fine">
+          Tip: Use weights to control frequency. Example: $5 off weight 8, 10% off weight 3, big prize weight 1.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <!-- MODAL -->
+  <div class="modalBack" id="modalBack">
+    <div class="modal">
+      <div class="modalHead">
+        <h3>Manage Prizes</h3>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <span class="pill">PIN required</span>
+          <button id="btnClose">Close</button>
+        </div>
+      </div>
+      <div class="modalBody">
+        <div class="row">
+          <div class="gridHead grid" style="margin-bottom:8px;">
+            <div>Prize text</div>
+            <div>Weight</div>
+            <div>Fine print (optional)</div>
+          </div>
+          <div id="rows"></div>
+          <div class="rowBtns">
+            <button id="btnAdd">+ Add Prize</button>
+            <button id="btnSave" class="btnPrimary">Save</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <b>Manager PIN</b>
+            <span class="pill">Default is 1234 (change it here)</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+            <input id="pinNew" type="password" placeholder="New PIN (numbers only)" inputmode="numeric" />
+            <input id="pinNew2" type="password" placeholder="Confirm new PIN" inputmode="numeric" />
+          </div>
+          <div class="rowBtns">
+            <button id="btnSetPin" class="btnPrimary">Update PIN</button>
+          </div>
+          <div class="fine" id="pinMsg"></div>
+        </div>
+
+        <div class="row">
+          <b>Admin Notes</b>
+          <div class="fine">Prizes + PIN are stored in this browser (localStorage). If you open on another device, you’ll need to re-set them there.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/********************
+ * STORAGE + DEFAULTS
+ ********************/
+const LS_PRIZES = "bg_spin_prizes_v1";
+const LS_PIN = "bg_spin_pin_v1";
+
+// Default PIN (used only if none saved yet)
+const DEFAULT_PIN = "1234";
+
+// Default prizes
+const DEFAULT_PRIZES = [
+  { label: "$5 OFF", weight: 8, fine: "Valid today only. One per customer." },
+  { label: "$10 OFF", weight: 5, fine: "Valid today only. One per customer." },
+  { label: "5% OFF", weight: 6, fine: "Applies to regular-priced items." },
+  { label: "10% OFF", weight: 3, fine: "Applies to regular-priced items." },
+  { label: "FREE WATER TEST", weight: 6, fine: "Stop by the counter anytime." },
+  { label: "FREE SHOCK", weight: 2, fine: "With qualifying purchase." },
+  { label: "$25 STORE CREDIT", weight: 1, fine: "One winner tonight!" }
+];
+
+function loadPrizes(){
+  try{
+    const raw = localStorage.getItem(LS_PRIZES);
+    if(!raw) return structuredClone(DEFAULT_PRIZES);
+    const parsed = JSON.parse(raw);
+    if(!Array.isArray(parsed) || !parsed.length) return structuredClone(DEFAULT_PRIZES);
+    // sanitize
+    return parsed.map(p => ({
+      label: String(p.label ?? "").trim().slice(0, 40) || "PRIZE",
+      weight: clampInt(p.weight ?? 1, 1, 20),
+      fine: String(p.fine ?? "").trim().slice(0, 120)
+    }));
+  }catch{
+    return structuredClone(DEFAULT_PRIZES);
+  }
+}
+function savePrizes(prizes){
+  localStorage.setItem(LS_PRIZES, JSON.stringify(prizes));
+}
+
+function loadPin(){
+  const saved = localStorage.getItem(LS_PIN);
+  return (saved && saved.trim()) ? saved.trim() : DEFAULT_PIN;
+}
+function savePin(pin){
+  localStorage.setItem(LS_PIN, pin);
+}
+
+function clampInt(v, min, max){
+  const n = parseInt(v, 10);
+  if(Number.isNaN(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
+/********************
+ * UI ELEMENTS
+ ********************/
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+const btnSpin = document.getElementById("btnSpin");
+const btnReroll = document.getElementById("btnReroll");
+const btnEdit = document.getElementById("btnEdit");
+const btnReset = document.getElementById("btnReset");
+const btnFull = document.getElementById("btnFull");
+const statusEl = document.getElementById("status");
+
+const prizeListEl = document.getElementById("prizeList");
+const winnerBox = document.getElementById("winnerBox");
+const winnerText = document.getElementById("winnerText");
+const winnerFine = document.getElementById("winnerFine");
+
+const modalBack = document.getElementById("modalBack");
+const rowsEl = document.getElementById("rows");
+const btnClose = document.getElementById("btnClose");
+const btnAdd = document.getElementById("btnAdd");
+const btnSave = document.getElementById("btnSave");
+
+const pinNew = document.getElementById("pinNew");
+const pinNew2 = document.getElementById("pinNew2");
+const btnSetPin = document.getElementById("btnSetPin");
+const pinMsg = document.getElementById("pinMsg");
+
+const confetti = document.getElementById("confetti");
+
+// Optional center logo: show if loads
+const centerLogo = document.getElementById("centerLogo");
+const centerText = document.getElementById("centerText");
+centerLogo.addEventListener("load", () => { centerLogo.style.display = "block"; centerText.style.display = "none"; });
+centerLogo.addEventListener("error", () => { centerLogo.style.display = "none"; centerText.style.display = "block"; });
+
+/********************
+ * WHEEL STATE
+ ********************/
+let prizes = loadPrizes();
+let spinAngle = 0;          // current angle (radians)
+let spinning = false;
+let lastWinnerIndex = null;
+
+function totalWeight(){
+  return prizes.reduce((sum,p)=>sum + (p.weight||1), 0);
+}
+
+// Build segments with start/end angles based on weights
+function buildSegments(){
+  const total = totalWeight();
+  let a = 0;
+  return prizes.map(p => {
+    const span = (p.weight / total) * Math.PI * 2;
+    const seg = { ...p, start:a, end:a + span };
+    a += span;
+    return seg;
+  });
+}
+
+// Determine winner index given final angle and pointer at top (-90deg)
+function winnerFromAngle(finalAngle){
+  // Normalize 0..2pi; pointer is at -90deg, so rotate angle by -90
+  const twoPi = Math.PI * 2;
+  let a = (finalAngle % twoPi + twoPi) % twoPi;
+
+  // Canvas drawing starts at -90deg; we also draw from -90deg, so use same.
+  // Pointer fixed at -90deg (top). Wheel rotates by spinAngle.
+  // The "hit" is the segment that aligns under the pointer: (-90 - spinAngle).
+  let hit = (-Math.PI/2 - a) % twoPi;
+  hit = (hit + twoPi) % twoPi;
+
+  const segs = buildSegments();
+  for(let i=0;i<segs.length;i++){
+    if(hit >= segs[i].start && hit < segs[i].end) return i;
+  }
+  return 0;
+}
+
+/********************
+ * DRAWING
+ ********************/
+function drawWheel(){
+  const segs = buildSegments();
+  const w = canvas.width, h = canvas.height;
+  const cx = w/2, cy = h/2;
+  const r = Math.min(cx, cy) - 18;
+
+  ctx.clearRect(0,0,w,h);
+
+  // outer ring
+  ctx.beginPath();
+  ctx.arc(cx,cy,r+8,0,Math.PI*2);
+  ctx.strokeStyle = "rgba(255,255,255,0.16)";
+  ctx.lineWidth = 10;
+  ctx.stroke();
+
+  // segments
+  const palette = [
+    "#143b77", "#0f2a55", "#18458a", "#0c2350", "#1b4d99",
+    "#102f61", "#173f80", "#0b1f44"
+  ];
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(spinAngle);
+
+  let i=0;
+  for(const s of segs){
+    const color = palette[i % palette.length];
+
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.arc(0,0,r, s.start - Math.PI/2, s.end - Math.PI/2);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // divider line
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // text
+    const mid = (s.start + s.end)/2 - Math.PI/2;
+    ctx.save();
+    ctx.rotate(mid);
+    ctx.translate(r*0.62, 0);
+    ctx.rotate(Math.PI/2);
+
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "900 34px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const label = s.label.length > 16 ? (s.label.slice(0,16) + "…") : s.label;
+    ctx.fillText(label, 0, 0);
+
+    ctx.restore();
+    i++;
+  }
+  ctx.restore();
+
+  // center circle
+  ctx.beginPath();
+  ctx.arc(cx,cy,r*0.32,0,Math.PI*2);
+  ctx.fillStyle = "rgba(7,20,39,0.72)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // subtle center highlight
+  ctx.beginPath();
+  ctx.arc(cx,cy,r*0.34,0,Math.PI*2);
+  ctx.strokeStyle = "rgba(255,209,102,0.12)";
+  ctx.lineWidth = 10;
+  ctx.stroke();
+}
+
+function renderPrizeList(){
+  prizeListEl.innerHTML = "";
+  prizes.forEach((p, idx) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<div><b>${escapeHtml(p.label)}</b><div><span>Weight: ${p.weight}</span></div></div>
+      <div style="text-align:right"><span>${p.fine ? escapeHtml(p.fine) : ""}</span></div>`;
+    prizeListEl.appendChild(div);
+  });
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/********************
+ * SPIN LOGIC
+ ********************/
+function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+async function spin(){
+  if(spinning) return;
+  if(prizes.length < 2){
+    alert("Add at least 2 prizes.");
+    return;
+  }
+  spinning = true;
+  winnerBox.style.display = "none";
+  statusEl.textContent = "Spinning...";
+
+  // Randomize extra rotations + landing
+  const start = spinAngle;
+  const spins = 5 + Math.random()*3; // 5–8 rotations
+  const extra = spins * Math.PI * 2;
+
+  // Choose a random target segment by weight (for fairness)
+  const segs = buildSegments();
+  const total = totalWeight();
+  let pick = Math.random() * total;
+  let targetIndex = 0;
+  for(let i=0;i<segs.length;i++){
+    pick -= segs[i].weight;
+    if(pick <= 0){ targetIndex = i; break; }
+  }
+
+  // Choose a random angle within that segment
+  const within = segs[targetIndex].start + Math.random()*(segs[targetIndex].end - segs[targetIndex].start);
+
+  // We need finalAngle such that pointer hits "within"
+  // hit = (-pi/2 - finalAngle) mod 2pi = within  => finalAngle = -pi/2 - within (mod 2pi)
+  const desired = (-Math.PI/2 - within);
+
+  const end = desired + extra;
+
+  const dur = 3600 + Math.random()*800;
+  const t0 = performance.now();
+
+  await new Promise(resolve => {
+    const step = (now) => {
+      const t = Math.min(1, (now - t0) / dur);
+      const e = easeOutCubic(t);
+      spinAngle = start + (end - start) * e;
+      drawWheel();
+      if(t < 1) requestAnimationFrame(step);
+      else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+
+  // Determine winner from final spinAngle
+  const idx = winnerFromAngle(spinAngle);
+  lastWinnerIndex = idx;
+
+  const win = prizes[idx];
+  winnerText.textContent = win.label;
+  winnerFine.textContent = win.fine || "";
+  winnerBox.style.display = "block";
+  statusEl.textContent = "Winner selected.";
+
+  popConfetti(120);
+  spinning = false;
+}
+
+function popConfetti(n=80){
+  confetti.innerHTML = "";
+  confetti.style.display = "block";
+  const colors = ["#ffd166","#26c281","#5cc8ff","#ff5c74","#ffffff"];
+  for(let i=0;i<n;i++){
+    const p = document.createElement("i");
+    const x = Math.random()*100;
+    const size = 6 + Math.random()*10;
+    const delay = Math.random()*180;
+    p.style.left = x + "vw";
+    p.style.width = size + "px";
+    p.style.height = (size*1.2) + "px";
+    p.style.background = colors[i % colors.length];
+    p.style.transform = `translateY(0) rotate(${Math.random()*360}deg)`;
+    p.style.animationDelay = delay + "ms";
+    p.style.opacity = (0.7 + Math.random()*0.3).toFixed(2);
+    confetti.appendChild(p);
+  }
+  setTimeout(()=>{ confetti.style.display = "none"; }, 1600);
+}
+
+/********************
+ * ADMIN (PIN + EDIT)
+ ********************/
+function openModal(){
+  modalBack.style.display = "flex";
+  buildRows();
+}
+function closeModal(){
+  modalBack.style.display = "none";
+  pinNew.value = "";
+  pinNew2.value = "";
+  pinMsg.textContent = "";
+}
+
+function askPinThen(cb){
+  const savedPin = loadPin();
+  const entered = prompt("Enter manager PIN:");
+  if(entered === null) return;
+  if(String(entered).trim() !== savedPin){
+    alert("Incorrect PIN.");
+    return;
+  }
+  cb();
+}
+
+function buildRows(){
+  rowsEl.innerHTML = "";
+  prizes.forEach((p, i) => addRow(p, i));
+}
+
+function addRow(p={label:"", weight:1, fine:""}, idx){
+  const row = document.createElement("div");
+  row.className = "row";
+  row.dataset.index = String(idx);
+
+  row.innerHTML = `
+    <div class="grid">
+      <input class="inLabel" placeholder="e.g., $5 OFF" value="${escapeHtml(p.label)}" />
+      <input class="inWeight" type="number" min="1" max="20" value="${p.weight}" />
+      <input class="inFine" placeholder="Optional fine print" value="${escapeHtml(p.fine||"")}" />
+    </div>
+    <div class="rowBtns">
+      <button class="btnDel dangerMini">Remove</button>
+    </div>
+  `;
+
+  row.querySelector(".btnDel").addEventListener("click", () => {
+    row.remove();
+  });
+
+  rowsEl.appendChild(row);
+}
+
+function collectRows(){
+  const rows = [...rowsEl.querySelectorAll(".row")];
+  const next = [];
+  for(const r of rows){
+    const label = r.querySelector(".inLabel").value.trim().slice(0,40);
+    const weight = clampInt(r.querySelector(".inWeight").value, 1, 20);
+    const fine = r.querySelector(".inFine").value.trim().slice(0,120);
+    if(label) next.push({ label, weight, fine });
+  }
+  return next;
+}
+
+/********************
+ * EVENTS
+ ********************/
+btnSpin.addEventListener("click", spin);
+
+btnReroll.addEventListener("click", () => {
+  if(spinning) return;
+  winnerBox.style.display = "none";
+  statusEl.textContent = "Ready.";
+  drawWheel();
+});
+
+btnEdit.addEventListener("click", () => {
+  askPinThen(() => openModal());
+});
+
+btnReset.addEventListener("click", () => {
+  askPinThen(() => {
+    if(confirm("Reset prizes to defaults?")){
+      prizes = structuredClone(DEFAULT_PRIZES);
+      savePrizes(prizes);
+      renderPrizeList();
+      drawWheel();
+      statusEl.textContent = "Prizes reset to defaults.";
+    }
+  });
+});
+
+btnFull.addEventListener("click", async () => {
+  try{
+    if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+    else await document.exitFullscreen();
+  }catch(e){
+    alert("Fullscreen not available in this browser.");
+  }
+});
+
+btnClose.addEventListener("click", closeModal);
+modalBack.addEventListener("click", (e) => { if(e.target === modalBack) closeModal(); });
+
+btnAdd.addEventListener("click", () => addRow({label:"", weight:1, fine:""}, Date.now()));
+
+btnSave.addEventListener("click", () => {
+  const next = collectRows();
+  if(next.length < 2){
+    alert("Please keep at least 2 prizes.");
+    return;
+  }
+  prizes = next;
+  savePrizes(prizes);
+  renderPrizeList();
+  drawWheel();
+  statusEl.textContent = "Prizes saved.";
+  closeModal();
+});
+
+btnSetPin.addEventListener("click", () => {
+  const a = pinNew.value.trim();
+  const b = pinNew2.value.trim();
+  if(!a || !b){
+    pinMsg.textContent = "Enter and confirm your new PIN.";
+    return;
+  }
+  if(a !== b){
+    pinMsg.textContent = "PINs do not match.";
+    return;
+  }
+  if(!/^\d{4,8}$/.test(a)){
+    pinMsg.textContent = "PIN must be 4–8 digits.";
+    return;
+  }
+  savePin(a);
+  pinMsg.textContent = "PIN updated successfully.";
+  pinNew.value = "";
+  pinNew2.value = "";
+});
+
+/********************
+ * INIT
+ ********************/
+renderPrizeList();
+drawWheel();
+statusEl.textContent = "Ready. Tap SPIN.";
+
+</script>
+</body>
+</html>
